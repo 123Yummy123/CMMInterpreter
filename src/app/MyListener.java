@@ -8,6 +8,8 @@ import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.ParseTreeProperty;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
+import java.util.Scanner;
+
 
 /**
  * Created by BxJiang on 2015/12/14.
@@ -259,6 +261,118 @@ public class MyListener extends CMM_BXJBaseListener{
                         }
                     }
 
+                }
+            }
+        }
+    }
+
+    //WRITE LEFT_PAREN expr (COMMA expr)* RIGHT_PAREN;
+    @Override
+    public void exitWrite_stat(CMM_BXJParser.Write_statContext ctx) {
+        for(int i=0;i<ctx.expr().size();i++){
+            System.out.print(getValue(ctx.expr(i)).getValue()+" ");
+        }
+        System.out.println();
+    }
+
+    // READ LEFT_PAREN (id|array_id) RIGHT_PAREN;
+    @Override
+    public void exitRead_stat(CMM_BXJParser.Read_statContext ctx) {
+        //read id
+        if(ctx.getChild(2).getChildCount()==1){
+            Symbol symbol = currentScope.resolve(ctx.id().ID().getText());
+            String value="";
+            if (symbol == null) {
+                CheckSymbols.error(ctx.id().ID().getSymbol(), "no such variable: " + ctx.id().ID().getText());
+                return;
+            }
+            else{
+                System.out.println("Please enter a value assigned to "+ctx.id().ID().getText());
+                Scanner scanner = new Scanner(System.in);
+                switch(symbol.getType()){
+                    case INT:
+                        if(scanner.hasNextInt()){
+                            value=scanner.nextLine();
+                            symbol.setValue(value);
+                        }
+                        else{
+                            CheckSymbols.error(ctx.id().ID().getSymbol(), "Illegal assignment for variable "+symbol.getName());
+                        }
+                        break;
+                    case DOUBLE:
+                        if(scanner.hasNextDouble()){
+                            value=scanner.nextLine();
+                            symbol.setValue(value);
+                        }
+                        else{
+                            CheckSymbols.error(ctx.id().ID().getSymbol(), "Illegal assignment for variable "+symbol.getName());
+                        }
+                        break;
+                    case BOOL:
+                        if(scanner.hasNextBoolean()){
+                            value=scanner.nextLine();
+                            symbol.setValue(value);
+                        }
+                        else{
+                            CheckSymbols.error(ctx.id().ID().getSymbol(), "Illegal assignment for variable "+symbol.getName());
+                        }
+                        break;
+                    default:
+                        value=String.valueOf(scanner.nextLine().charAt(0));
+                        symbol.setValue(value);
+                }
+        }
+
+        }
+        //read array id
+        else{
+            ArraySymbol as=(ArraySymbol)currentScope.resolve(ctx.array_id().ID().getText());
+            String value="";
+            int index;
+            if (as == null) {
+                CheckSymbols.error(ctx.array_id().ID().getSymbol(), "no such variable: " + ctx.array_id().ID().getText());
+                return;
+            }
+            else{
+                index=Integer.parseInt(ctx.array_id().array_tail().num_expr().getText());
+                if(index<as.getSize()){
+                    System.out.println("Please enter a value assigned to "+ctx.array_id().ID().getText());
+                    Scanner scanner = new Scanner(System.in);
+                    switch(as.getType()){
+                        case INT:
+                            if(scanner.hasNextInt()){
+                                value=scanner.nextLine();
+                                as.setElementValue(index, value);
+                            }
+                            else{
+                                CheckSymbols.error(ctx.array_id().ID().getSymbol(), "Illegal assignment for variable "+as.getName());
+                            }
+                            break;
+                        case DOUBLE:
+                            if(scanner.hasNextDouble()){
+                                value=scanner.nextLine();
+                                as.setElementValue(index, value);
+                            }
+                            else{
+                                CheckSymbols.error(ctx.array_id().ID().getSymbol(), "Illegal assignment for variable "+as.getName());
+                            }
+                            break;
+                        case BOOL:
+                            if(scanner.hasNextBoolean()){
+                                value=scanner.nextLine();
+                                as.setElementValue(index,value);
+                            }
+                            else{
+                                CheckSymbols.error(ctx.array_id().ID().getSymbol(), "Illegal assignment for variable "+as.getName());
+                            }
+                            break;
+                        default:
+                            value=String.valueOf(scanner.nextLine().charAt(0));
+                            as.setValue(value);
+                    }
+                }
+                else{
+                    CheckSymbols.error(ctx.array_id().ID().getSymbol(), "Array "+as.getName()+" assignment exceeds boundary.");
                 }
             }
         }

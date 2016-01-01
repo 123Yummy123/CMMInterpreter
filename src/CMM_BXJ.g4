@@ -87,8 +87,6 @@ bool_expr             //expression that return true or false
     |   id
     ;
 
-
-
 char_expr         //expression that return character
     :   CHAR
     |   array_id
