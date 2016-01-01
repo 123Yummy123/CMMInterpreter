@@ -1,4 +1,4 @@
-grammar CMM_BXJ;
+grammar CMM_BXJ;  //this is a test
 
 input
     :   stat*;
