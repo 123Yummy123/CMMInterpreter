@@ -19,7 +19,6 @@ public class MyListener extends CMM_BXJBaseListener{
     public void setValue(ParseTree node, Symbol value) { values.put(node, value); }
     public Symbol getValue(ParseTree node) { return values.get(node); }
 
-    /* build a symbol table */
     @Override public void exitDeclare_stat(CMM_BXJParser.Declare_statContext ctx) {
         Symbol.Type type=CheckSymbols.getType(ctx.type().start.getType());
         int n=ctx.getChildCount();
@@ -42,24 +41,227 @@ public class MyListener extends CMM_BXJBaseListener{
     }
 
     @Override public void exitAssign_stat(CMM_BXJParser.Assign_statContext ctx) {
-        if(ctx.getChild(0).getChildCount()==1){     //assign to a id
-            Symbol symbol = currentScope.resolve(ctx.id().getText());
-            if(symbol==null) {
-                CheckSymbols.error(ctx.id().ID().getSymbol(), "no such variable: " + ctx.id().getText());
+        int index;
+        if (ctx.getChild(0).getChildCount() ==1 ) {
+            Symbol symbol = currentScope.resolve(ctx.id().ID().getText());
+            if (symbol == null) {
+                CheckSymbols.error(ctx.id().ID().getSymbol(), "no such variable: " + ctx.id().ID().getText());
                 return;
-            }
-            symbol.setValue(getValue(ctx.getChild(2)).getValue());
-        }
-        else{           //assign to a array_id
-            ArraySymbol as = (ArraySymbol)currentScope.resolve(ctx.array_id().ID().getText());
-            if(as==null){
-                CheckSymbols.error(ctx.array_id().ID().getSymbol(), "no such variable: " + ctx.array_id().ID().getText());
-                return;
-            }
-            int index=Integer.parseInt(ctx.array_id().array_tail().num_expr().getText());
-            as.setElementValue(index,ctx.getChild(2).getText());
-        }
+            } else {
+                if (symbol instanceof ArraySymbol) {
+                    ArraySymbol as = (ArraySymbol) symbol;
+                    if (as.getType() == Symbol.Type.INT) {
+                        index = ctx.array_expr().num_array_expr().COMMA().size()+1;
+                        if(as.getSize()<index){
+                            CheckSymbols.error(ctx.id().ID().getSymbol(), ctx.id().ID().getText()+" assignment exceeds boundary");
+                        }
+                        else{
+                            String[] values = new String[index];
+                            if(ctx.array_expr().num_array_expr().getTokens(CMM_BXJParser.INT).size()==index){
+                                for (int i = 0; i < index; i++) {
+                                    values[i] = ctx.array_expr().num_array_expr().INT(i).getText();
+                                }
+                            }
+                            else{
+                                CheckSymbols.error(ctx.id().ID().getSymbol(), ctx.id().ID().getText()+" is assigned incompatible type");
+                            }
+                            as.setValues(values);
+                        }
+                    } else if (as.getType() == Symbol.Type.DOUBLE) {
+                        index = ctx.array_expr().num_array_expr().COMMA().size()+1;
+                        if(as.getSize()<index){
+                            CheckSymbols.error(ctx.id().ID().getSymbol(), ctx.id().ID().getText()+" assignment exceeds boundary");
+                        }
+                        else{
+                            String[] values = new String[index];
+                            if(ctx.array_expr().num_array_expr().getTokens(CMM_BXJParser.DOUBLE).size()==index){
+                                for (int j = 0; j < index; j++) {
+                                    values[j] = ctx.array_expr().num_array_expr().DOUBLE(j).getText();
+                                }
+                            }
+                            else{
+                                CheckSymbols.error(ctx.id().ID().getSymbol(), ctx.id().ID().getText()+" is assigned incompatible type");
+                            }
+                            as.setValues(values);
+                        }
 
+                    } else if (as.getType() == Symbol.Type.CHAR) {
+                        if(ctx.array_expr().char_array_expr().getChildCount() !=0){
+                            index = ctx.array_expr().char_array_expr().COMMA().size()+1;
+                            if(as.getSize()<index){
+                                CheckSymbols.error(ctx.id().ID().getSymbol(), ctx.id().ID().getText()+" assignment exceeds boundary");
+                            }
+                            else{
+                                String[] values = new String[index];
+                                if(ctx.array_expr().char_array_expr().getTokens(CMM_BXJParser.CHAR).size()==index
+                                        && ctx.array_expr().char_array_expr().getRuleIndex()==CMM_BXJParser.RULE_char_array_expr){
+                                    for (int j = 0; j < index; j++) {
+                                        values[j] = ctx.array_expr().char_array_expr().CHAR(j).getText();
+                                    }
+                                }
+                                as.setValues(values);
+                            }
+                        }
+                        else{
+                            CheckSymbols.error(ctx.id().ID().getSymbol(), ctx.id().ID().getText()+" is assigned incompatible type");
+                        }
+                    } else {
+                        index = ctx.array_expr().bool_array_expr().BOOL().size();
+                        if(as.getSize()<index){
+                            CheckSymbols.error(ctx.id().ID().getSymbol(), ctx.id().ID().getText()+" assignment exceeds boundary");
+                        }
+                        else{
+                            String[] values = new String[index];
+                            if(ctx.array_expr().bool_array_expr().getTokens(CMM_BXJParser.BOOL).size()==index){
+                                for (int j = 0; j < index; j++) {
+                                    values[j] = ctx.array_expr().bool_array_expr().BOOL(j).getText();
+                                }
+                            }
+                            as.setValues(values);
+                        }
+                    }
+                } else if (symbol instanceof Symbol) {
+                    symbol.setValue(ctx.getChild(2).getChild(0).getText());
+                }
+            }
+        }
+        //array id assignment
+        else{
+            ArraySymbol arrId = (ArraySymbol)currentScope.resolve(ctx.array_id().ID().getText());
+            if (arrId == null) {
+                CheckSymbols.error(ctx.array_id().ID().getSymbol(), "no such variable: " + ctx.id().ID().getText());
+                return;
+            }
+            else{
+                index=Integer.parseInt(ctx.array_id().array_tail().num_expr().getText());
+                if(arrId.getType()==getValue(ctx.expr()).getType()){
+                    String value=getValue(ctx.expr()).getValue();
+                    arrId.setElementValue(index, value);
+
+                }
+                else{
+                    CheckSymbols.error(ctx.array_id().ID().getSymbol(), ctx.array_id().ID().getText()+" is assigned incompatible type");
+                }
+            }
+        }
+    }
+
+    @Override
+    public void exitDeclare_assign_stat(CMM_BXJParser.Declare_assign_statContext ctx) {
+        //ID declare_assign_stmt
+        Symbol.Type type=CheckSymbols.getType(ctx.type().start.getType());
+        if(ctx.getChild(1).getChildCount()==1){
+            for(int i=0;i<ctx.id().size();i++){
+                String name=ctx.id(i).getText();
+                if(type==getValue(ctx.expr(i)).getType()){
+                    String value=getValue(ctx.expr(i)).getValue();
+                    Symbol symbol=new Symbol(name,type,value);
+                    currentScope.define(symbol);
+                }
+                else{
+                    CheckSymbols.error(ctx.id(i).ID().getSymbol(), ctx.id(i).ID().getText()+" is assigned incompatible type");
+                }
+            }
+        }
+        //array_id declare assign stmt
+        else{
+            int index;      //num_expr in array_tail
+            int assIndex;       //value number in array_expr;
+            if(type==Symbol.Type.INT){
+                for(int i=0;i<ctx.array_id().size();i++){
+                    String name=ctx.array_id(i).ID().getText();
+                    index=Integer.parseInt(ctx.array_id(i).array_tail().num_expr().getText());
+                    assIndex=ctx.array_expr(i).num_array_expr().COMMA().size()+1;
+                    if(index<assIndex){
+                        CheckSymbols.error(ctx.array_id(i).ID().getSymbol(), ctx.array_id(i).ID().getText()+" assignment exceeds boundary");
+                    }
+                    else{
+                        ArraySymbol as=new ArraySymbol(name,type,index);
+                        if(ctx.array_expr(i).num_array_expr().INT().size()==assIndex){
+                            String[] values=new String[assIndex];
+                            for(int j=0;j<assIndex;j++){
+                                values[j]=ctx.array_expr(i).num_array_expr().INT(j).getText();
+                                as.setValues(values);
+                            }
+                            currentScope.define(as);
+                        }
+                        else{
+                            CheckSymbols.error(ctx.array_id(i).ID().getSymbol(), ctx.array_id(i).ID().getText()+" is assigned incompatible type");
+                        }
+                    }
+
+                }
+            }
+            else if(type==Symbol.Type.DOUBLE){
+                for(int i=0;i<ctx.array_id().size();i++){
+                    String name=ctx.array_id(i).ID().getText();
+                    index=Integer.parseInt(ctx.array_id(i).array_tail().num_expr().getText());
+                    assIndex=ctx.array_expr(i).num_array_expr().COMMA().size()+1;
+                    if(index<assIndex){
+                        CheckSymbols.error(ctx.array_id(i).ID().getSymbol(), ctx.array_id(i).ID().getText()+" assignment exceeds boundary");
+                    }
+                    else{
+                        ArraySymbol as=new ArraySymbol(name,type,index);
+                        if(ctx.array_expr(i).num_array_expr().DOUBLE().size()==assIndex){
+                            String[] values=new String[assIndex];
+                            for(int j=0;j<assIndex;j++){
+                                values[j]=ctx.array_expr(i).num_array_expr().DOUBLE(j).getText();
+                                as.setValues(values);
+                            }
+                            currentScope.define(as);
+                        }
+                        else{
+                            CheckSymbols.error(ctx.array_id(i).ID().getSymbol(), ctx.array_id(i).ID().getText()+" is assigned incompatible type");
+                        }
+                    }
+
+                }
+            }
+            else if(type==Symbol.Type.CHAR){
+                for(int i=0;i<ctx.array_id().size();i++){
+                    String name=ctx.array_id(i).ID().getText();
+                    index=Integer.parseInt(ctx.array_id(i).array_tail().num_expr().getText());
+                    assIndex=ctx.array_expr(i).char_array_expr().COMMA().size()+1;
+                    if(index<assIndex){
+                        CheckSymbols.error(ctx.array_id(i).ID().getSymbol(), ctx.array_id(i).ID().getText()+" assignment exceeds boundary");
+                    }
+                    else{
+                        ArraySymbol as=new ArraySymbol(name,type,index);
+                        if(ctx.array_expr(i).char_array_expr().CHAR().size()==assIndex){
+                            String[] values=new String[assIndex];
+                            for(int j=0;j<assIndex;j++){
+                                values[j]=ctx.array_expr(i).char_array_expr().CHAR(j).getText();
+                                as.setValues(values);
+                            }
+                            currentScope.define(as);
+                        }
+                    }
+
+                }
+            }
+            else{
+                for(int i=0;i<ctx.array_id().size();i++){
+                    String name=ctx.array_id(i).ID().getText();
+                    index=Integer.parseInt(ctx.array_id(i).array_tail().num_expr().getText());
+                    assIndex=ctx.array_expr(i).bool_array_expr().COMMA().size()+1;
+                    if(index<assIndex){
+                        CheckSymbols.error(ctx.array_id(i).ID().getSymbol(), ctx.array_id(i).ID().getText()+" assignment exceeds boundary");
+                    }
+                    else{
+                        ArraySymbol as=new ArraySymbol(name,type,index);
+                        if(ctx.array_expr(i).bool_array_expr().BOOL().size()==assIndex){
+                            String[] values=new String[assIndex];
+                            for(int j=0;j<assIndex;j++){
+                                values[j]=ctx.array_expr(i).bool_array_expr().BOOL(j).getText();
+                                as.setValues(values);
+                            }
+                            currentScope.define(as);
+                        }
+                    }
+
+                }
+            }
+        }
     }
 
     @Override public void enterInput(CMM_BXJParser.InputContext ctx) {

@@ -35,6 +35,9 @@ public class ArraySymbol extends Symbol{
         return '{'+result+'}';
     }
 
+    public int getSize(){
+        return size;
+    }
     public String toString(){
         return '<'+name+"(ARRAY_"+type+"):"+ getValuesStr()+'>';
     }
